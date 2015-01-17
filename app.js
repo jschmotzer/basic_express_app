@@ -1,4 +1,5 @@
 var express = require('express');
+var session = require('express-session');
 var path = require('path');
 var favicon = require('serve-favicon');
 var logger = require('morgan');
@@ -22,9 +23,31 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(require('less-middleware')(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(session({ secret: 'app', cookie: { maxAge: 60000 }}));
+app.use(bodyParser());
 
-app.use('/', routes);
 app.use('/users', users);
+
+var verifyUser = function(req, res, next) {
+    if (req.session.loggedIn) {
+        next();
+    } else {
+      var username = 'admin', password = 'admin';
+      if (req.body.username === username && req.body.password === password) {
+        req.session.loggedIn = true;
+        res.redirect('/');
+      } else {
+        res.render('login', {title: 'Please login.'});
+      }
+    }
+}
+app.use('/', verifyUser, routes);
+
+var logout = function(req, res, next) {
+    req.session.loggedIn = false;
+    res.redirect('/');
+}
+app.all('/logout', logout);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
